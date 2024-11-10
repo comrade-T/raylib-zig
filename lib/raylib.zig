@@ -1271,6 +1271,10 @@ pub const GlyphInfo = extern struct {
 };
 
 pub const Font = extern struct {
+    ascent: c_int,
+    descent: c_int,
+    lineGap: c_int,
+
     baseSize: c_int,
     glyphCount: c_int,
     glyphPadding: c_int,
@@ -1829,7 +1833,7 @@ pub const ShaderLocationIndex = enum(c_int) {
     shader_loc_map_brdf = 25,
     shader_loc_vertex_boneids = 26,
     shader_loc_vertex_boneweights = 27,
-    shader_loc_bone_matrices = 28
+    shader_loc_bone_matrices = 28,
 };
 
 pub const ShaderUniformDataType = enum(c_int) {
