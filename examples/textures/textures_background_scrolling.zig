@@ -20,9 +20,9 @@ pub fn main() anyerror!void {
 
     // NOTE: Be careful, background width must be equal or bigger than screen width
     // if not, texture should be draw more than two times for scrolling effect
-    const background = rl.loadTexture("resources/textures/cyberpunk_street_background.png");
-    const midground = rl.loadTexture("resources/textures/cyberpunk_street_midground.png");
-    const foreground = rl.loadTexture("resources/textures/cyberpunk_street_foreground.png");
+    const background = try rl.loadTexture("resources/textures/cyberpunk_street_background.png");
+    const midground = try rl.loadTexture("resources/textures/cyberpunk_street_midground.png");
+    const foreground = try rl.loadTexture("resources/textures/cyberpunk_street_foreground.png");
     defer rl.unloadTexture(background); // Unload background texture
     defer rl.unloadTexture(midground); // Unload midground texture
     defer rl.unloadTexture(foreground); // Unload foreground texture
@@ -59,49 +59,49 @@ pub fn main() anyerror!void {
             // NOTE: Texture is scaled twice its size
             rl.drawTextureEx(
                 background,
-                rl.Vector2.init(scrolling_back, 20.0),
+                .init(scrolling_back, 20.0),
                 0.0,
                 2.0,
-                rl.Color.white,
+                .white,
             );
             rl.drawTextureEx(
                 background,
-                rl.Vector2.init(@as(f32, @floatFromInt(background.width * 2)) + scrolling_back, 20),
+                .init(@as(f32, @floatFromInt(background.width * 2)) + scrolling_back, 20),
                 0.0,
                 2.0,
-                rl.Color.white,
+                .white,
             );
 
             // Draw midground image twice
             rl.drawTextureEx(
                 midground,
-                rl.Vector2.init(scrolling_mid, 20.0),
+                .init(scrolling_mid, 20.0),
                 0.0,
                 2.0,
-                rl.Color.white,
+                .white,
             );
             rl.drawTextureEx(
                 midground,
-                rl.Vector2.init(@as(f32, @floatFromInt(midground.width * 2)) + scrolling_mid, 20),
+                .init(@as(f32, @floatFromInt(midground.width * 2)) + scrolling_mid, 20),
                 0.0,
                 2.0,
-                rl.Color.white,
+                .white,
             );
 
             // Draw foreground image twice
             rl.drawTextureEx(
                 foreground,
-                rl.Vector2.init(scrolling_fore, 70.0),
+                .init(scrolling_fore, 70.0),
                 0.0,
                 2.0,
-                rl.Color.white,
+                .white,
             );
             rl.drawTextureEx(
                 foreground,
-                rl.Vector2.init(@as(f32, @floatFromInt(foreground.width * 2)) + scrolling_fore, 70),
+                .init(@as(f32, @floatFromInt(foreground.width * 2)) + scrolling_fore, 70),
                 0.0,
                 2.0,
-                rl.Color.white,
+                .white,
             );
 
             rl.drawText(
@@ -109,14 +109,14 @@ pub fn main() anyerror!void {
                 10,
                 10,
                 20,
-                rl.Color.red,
+                .red,
             );
             rl.drawText(
                 "(c) Cyberpunk Street Environment by Luis Zuno (@ansimuz)",
                 screen_width - 330,
                 screen_height - 20,
                 10,
-                rl.Color.ray_white,
+                .ray_white,
             );
         }
     }

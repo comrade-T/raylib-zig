@@ -9,15 +9,18 @@ Set-Location -Path $PROJECT_NAME -ErrorAction Stop
 
 Write-Output "Generating project files..."
 
+zig init
+Remove-Item "build.zig", "src\root.zig"
+
 $BUILD_DOT_ZIG = @"
 const std = @import("std");
-const rlz = @import("raylib-zig");
+const rlz = @import("raylib_zig");
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     
-    const raylib_dep = b.dependency("raylib-zig", .{
+    const raylib_dep = b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
     });
@@ -27,7 +30,7 @@ pub fn build(b: *std.Build) !void {
 
     //web exports are completely separate
     if (target.query.os_tag == .emscripten) {
-        const exe_lib = rlz.emcc.compileForEmscripten(b, "$PROJECT_NAME", "src/main.zig", target, optimize);
+        const exe_lib = try rlz.emcc.compileForEmscripten(b, "$PROJECT_NAME", "src/main.zig", target, optimize);
 
         exe_lib.linkLibrary(raylib_artifact);
         exe_lib.root_module.addImport("raylib", raylib);
@@ -61,25 +64,8 @@ pub fn build(b: *std.Build) !void {
 
 New-Item -Name "build.zig" -ItemType "file" -Value $BUILD_DOT_ZIG -Force
 
-$HASH = $(zig fetch https://github.com/Not-Nik/raylib-zig/archive/devel.tar.gz)
+zig fetch --save git+https://github.com/Not-Nik/raylib-zig#devel
 
-$ZON_FILE = @"
-.{
-    .name = "$PROJECT_NAME",
-    .version = "0.0.1",
-    .dependencies = .{
-        .@"raylib-zig" = .{
-            .url = "https://github.com/Not-Nik/raylib-zig/archive/devel.tar.gz",
-            .hash = "$HASH",
-        },
-    },
-    .paths = .{""},
-}
-"@
-
-New-Item -Name "build.zig.zon" -ItemType "file" -Value $ZON_FILE -Force
-
-New-Item -Name "src" -ItemType "directory"
 New-Item -Name "resources" -ItemType "directory"
 New-Item -Name "resources/placeholder.txt" -ItemType "file" -Value "" -Force
 

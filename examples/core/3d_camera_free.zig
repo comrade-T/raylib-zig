@@ -16,11 +16,11 @@ pub fn main() anyerror!void {
 
     // Define the camera to look into our 3d world
     var camera = rl.Camera{
-        .position = rl.Vector3.init(10, 10, 10),
-        .target = rl.Vector3.init(0, 0, 0),
-        .up = rl.Vector3.init(0, 1, 0),
+        .position = .init(10, 10, 10),
+        .target = .init(0, 0, 0),
+        .up = .init(0, 1, 0),
         .fovy = 45,
-        .projection = rl.CameraProjection.camera_perspective,
+        .projection = .perspective,
     };
 
     const cubePosition = rl.Vector3.init(0, 0, 0);
@@ -33,10 +33,10 @@ pub fn main() anyerror!void {
     while (!rl.windowShouldClose()) { // Detect window close button or ESC key
         // Update
         //-----------------------------------------------------------------------------
-        camera.update(rl.CameraMode.camera_free);
+        camera.update(.free);
 
-        if (rl.isKeyPressed(rl.KeyboardKey.key_z)) {
-            camera.target = rl.Vector3.init(0, 0, 0);
+        if (rl.isKeyPressed(.z)) {
+            camera.target = .init(0, 0, 0);
         }
         //-----------------------------------------------------------------------------
 
@@ -45,25 +45,25 @@ pub fn main() anyerror!void {
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        rl.clearBackground(rl.Color.ray_white);
+        rl.clearBackground(.ray_white);
 
         {
             camera.begin();
             defer camera.end();
 
-            rl.drawCube(cubePosition, 2, 2, 2, rl.Color.red);
-            rl.drawCubeWires(cubePosition, 2, 2, 2, rl.Color.maroon);
+            rl.drawCube(cubePosition, 2, 2, 2, .red);
+            rl.drawCubeWires(cubePosition, 2, 2, 2, .maroon);
 
             rl.drawGrid(10, 1);
         }
 
-        rl.drawRectangle(10, 10, 320, 93, rl.Color.fade(rl.Color.sky_blue, 0.5));
-        rl.drawRectangleLines(10, 10, 320, 93, rl.Color.blue);
+        rl.drawRectangle(10, 10, 320, 93, .fade(.sky_blue, 0.5));
+        rl.drawRectangleLines(10, 10, 320, 93, .blue);
 
-        rl.drawText("Free camera default controls:", 20, 20, 10, rl.Color.black);
-        rl.drawText("- Mouse Wheel to Zoom in-out", 40, 40, 10, rl.Color.dark_gray);
-        rl.drawText("- Mouse Wheel Pressed to Pan", 40, 60, 10, rl.Color.dark_gray);
-        rl.drawText("- Z to zoom to (0, 0, 0)", 40, 80, 10, rl.Color.dark_gray);
+        rl.drawText("Free camera default controls:", 20, 20, 10, .black);
+        rl.drawText("- Mouse Wheel to Zoom in-out", 40, 40, 10, .dark_gray);
+        rl.drawText("- Mouse Wheel Pressed to Pan", 40, 60, 10, .dark_gray);
+        rl.drawText("- Z to zoom to (0, 0, 0)", 40, 80, 10, .dark_gray);
         //-----------------------------------------------------------------------------
     }
 }

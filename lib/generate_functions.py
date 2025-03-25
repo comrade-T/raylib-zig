@@ -73,7 +73,7 @@ def ziggify_type(name: str, t: str, func_name) -> str:
     string = False
 
     if name == "text" and t == "[*c][*c]const u8":
-        return "[][*:0]const u8"
+        return "[][:0]const u8"
 
     if t.startswith("[*c]") and name not in single and name not in multi:
         if (t == "[*c]const u8" or t == "[*c]u8") and name not in NO_STRINGS:  # Strings are multis.
@@ -85,7 +85,7 @@ def ziggify_type(name: str, t: str, func_name) -> str:
     while t.startswith("[*c]"):
         t = t[4:]
         if string and not t.startswith("[*c]"):
-            pre += "[*:0]"
+            pre += "[:0]"
         elif name in single:
             pre += "*"
         else:
@@ -173,6 +173,7 @@ _fix_enums_data = [
     ("flag",        "ConfigFlags",           r"IsWindowState"),
     ("flags",       "Gesture",               r"SetGesturesEnabled"),
     ("button",      "GamepadButton",         r".*GamepadButton.*"),
+    ("axis",        "GamepadAxis",           r".*GamepadAxis.*"),
     ("button",      "MouseButton",           r".*MouseButton.*"),
     ("control",     "GuiControl",            r"Gui.etStyle"),
 #    ("property",    "GuiControlProperty",    r"Gui.etStyle"),
@@ -299,6 +300,7 @@ def parse_header(header_name: str, output_file: str, ext_file: str, prefix: str,
                 ("rlLoadShaderBuffer", "data"),
                 ("rlLoadShaderCode", "vsCode"),
                 ("rlLoadShaderCode", "fsCode"),
+                ("GuiTextInputBox", "secretViewActive")
             ]
 
             zig_type = ziggify_type(arg_name, arg_type, func_name)
@@ -331,21 +333,47 @@ def parse_header(header_name: str, output_file: str, ext_file: str, prefix: str,
 
         manual = [
             "TextFormat",
+            "TraceLog",
             "LoadShader",
             "ExportDataAsCode",
             "LoadFileData",
             "SaveFileData",
-            "ExportDataAsCode",
+            "LoadImage",
+            "LoadImageRaw",
+            "LoadImageAnim",
+            "LoadImageFromTexture",
+            "LoadImageFromScreen",
             "LoadImageFromMemory",
+            "LoadMaterialDefault",
+            "LoadMaterials",
+            "LoadModel",
+            "LoadModelFromMesh",
+            "LoadTexture",
+            "LoadTextureFromImage",
+            "LoadTextureCubemap",
+            "LoadRenderTexture",
+            "LoadWave",
+            "LoadSound",
+            "LoadMusicStream",
+            "LoadAudioStream",
             "DrawMeshInstanced",
             "UnloadModelAnimations",
             "CompressData",
             "DecompressData",
             "EncodeDataBase64",
             "DecodeDataBase64",
+            "ComputeCRC32",
+            "ComputeMD5",
+            "ComputeSHA1",
             "SetWindowIcons",
             "CheckCollisionPointPoly",
+            "ColorToInt",
+            "GetFontDefault",
+            "LoadFont",
             "LoadFontEx",
+            "LoadFontFromImage",
+            "ImageText",
+            "ImageTextEx",
             "GenImageFontAtlas",
             "UnloadFontData",
             "DrawTextCodepoints",
@@ -364,7 +392,9 @@ def parse_header(header_name: str, output_file: str, ext_file: str, prefix: str,
             "DrawSplineCatmullRom",
             "DrawSplineBezierQuadratic",
             "DrawSplineBezierCubic",
-            "ImageKernelConvolution"
+            "ImageKernelConvolution",
+            "GuiSetStyle",
+            "GuiGetStyle"
         ]
 
         if func_name in manual or "FromMemory" in func_name:

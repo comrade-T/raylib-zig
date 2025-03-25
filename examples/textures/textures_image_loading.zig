@@ -25,16 +25,16 @@ pub fn main() anyerror!void {
 
     // NOTE: Textures MUST be loaded after Window initialization (OpenGL context is required)
 
-    const image = rl.loadImage("logo/logo.png"); // Loaded in CPU memory (RAM)
-    const texture = rl.loadTextureFromImage(image); // Image converted to texture, GPU memory (VRAM)
+    const image = try rl.loadImage("logo/logo.png"); // Loaded in CPU memory (RAM)
+    const texture = try rl.loadTextureFromImage(image); // Image converted to texture, GPU memory (VRAM)
     // Once image has been converted to texture and uploaded to VRAM,
     // it can be unloaded from RAM
     rl.unloadImage(image);
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
-    defer rl.unloadTexture(texture); // Texture unloading
     defer rl.closeWindow(); // Close window and OpenGL context
+    defer rl.unloadTexture(texture); // Texture unloading
     //--------------------------------------------------------------------------------------
 
     rl.setTargetFPS(60); // Set our game to run at 60 frames-per-second

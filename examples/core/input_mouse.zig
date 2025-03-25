@@ -25,12 +25,12 @@ pub fn main() anyerror!void {
         ballPosition.x = @as(f32, @floatFromInt(rl.getMouseX()));
         ballPosition.y = @as(f32, @floatFromInt(rl.getMouseY()));
 
-        if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_left)) {
-            ballColor = rl.Color.maroon;
-        } else if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_middle)) {
-            ballColor = rl.Color.lime;
-        } else if (rl.isMouseButtonPressed(rl.MouseButton.mouse_button_right)) {
-            ballColor = rl.Color.dark_blue;
+        if (rl.isMouseButtonPressed(.left)) {
+            ballColor = .maroon;
+        } else if (rl.isMouseButtonPressed(.middle)) {
+            ballColor = .lime;
+        } else if (rl.isMouseButtonPressed(.right)) {
+            ballColor = .dark_blue;
         }
         //----------------------------------------------------------------------------------
 
@@ -39,11 +39,11 @@ pub fn main() anyerror!void {
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        rl.clearBackground(rl.Color.ray_white);
+        rl.clearBackground(.ray_white);
 
         rl.drawCircleV(ballPosition, 40, ballColor);
 
-        rl.drawText("move ball with mouse and click mouse button to change color", 10, 10, 20, rl.Color.dark_gray);
+        rl.drawText("move ball with mouse and click mouse button to change color", 10, 10, 20, .dark_gray);
         //----------------------------------------------------------------------------------
     }
 }
