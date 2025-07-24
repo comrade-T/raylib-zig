@@ -14,11 +14,17 @@ test {
 
 pub const RaylibError = error{
     LoadFileData,
+    CompressData,
+    DecompressData,
+    EncodeDataBase64,
+    DecodeDataBase64,
+    ExportImageToMemory,
     LoadImageColors,
     LoadImagePalette,
     LoadFont,
     LoadFontData,
     LoadCodepoints,
+    TextSplit,
     LoadMaterial,
     LoadMaterials,
     LoadModelAnimations,
@@ -1949,7 +1955,7 @@ pub const AudioCallback = ?*const fn (?*anyopaque, c_uint) callconv(.C) void;
 pub const RAYLIB_VERSION_MAJOR = @as(i32, 5);
 pub const RAYLIB_VERSION_MINOR = @as(i32, 5);
 pub const RAYLIB_VERSION_PATCH = @as(i32, 0);
-pub const RAYLIB_VERSION = "5.6-devfn alloc(_: *anyopaque, len: usize, _: std.mem.Alignment, _: usize) ?[*]u8 {";
+pub const RAYLIB_VERSION = "5.6-dev";
 
 pub const MAX_TOUCH_POINTS = 10;
 pub const MAX_MATERIAL_MAPS = 12;
@@ -1995,16 +2001,13 @@ pub fn loadShaderFromMemory(vsCode: ?[:0]const u8, fsCode: ?[:0]const u8) Raylib
     return if (isValid) shader else RaylibError.LoadShader;
 }
 
-/// Load file data as byte array (read)
-pub fn loadFileData(fileName: [:0]const u8) RaylibError![]u8 {
-    var bytesRead: i32 = 0;
-    var res: []u8 = undefined;
+pub fn loadRandomSequence(count: u32, min: i32, max: i32) []i32 {
+    var res: []i32 = undefined;
 
-    const ptr = cdef.LoadFileData(@as([*c]const u8, @ptrCast(fileName)), @as([*c]c_int, @ptrCast(&bytesRead)));
-    if (ptr == 0) return RaylibError.LoadFileData;
+    const ptr = cdef.LoadRandomSequence(@as(c_uint, @intCast(count)), @as(c_int, @intCast(min)), @as(c_int, @intCast(max)));
 
-    res.ptr = @as([*]u8, @ptrCast(ptr));
-    res.len = @as(usize, @intCast(bytesRead));
+    res.ptr = @as([*]i32, @ptrCast(ptr));
+    res.len = @as(usize, @intCast(count));
     return res;
 }
 
@@ -2016,42 +2019,6 @@ pub fn saveFileData(fileName: [:0]const u8, data: []u8) bool {
 /// Export data to code (.h), returns true on success
 pub fn exportDataAsCode(data: []const u8, fileName: [:0]const u8) bool {
     return cdef.ExportDataAsCode(@as([*c]const u8, @ptrCast(data)), @as(c_int, @intCast(data.len)), @as([*c]const u8, @ptrCast(fileName)));
-}
-
-/// Compress data (DEFLATE algorithm), memory must be MemFree()
-pub fn compressData(data: []const u8) []u8 {
-    var compDataSize: i32 = 0;
-    var res: []u8 = undefined;
-    res.ptr = cdef.CompressData(@as([*c]const u8, @ptrCast(data)), @as(c_int, @intCast(data.len)), @as([*c]c_int, @ptrCast(&compDataSize)));
-    res.len = @as(usize, @intCast(compDataSize));
-    return res;
-}
-
-/// Decompress data (DEFLATE algorithm), memory must be MemFree()
-pub fn decompressData(compData: []const u8) []u8 {
-    var dataSize: i32 = 0;
-    var res: []u8 = undefined;
-    res.ptr = cdef.DecompressData(@as([*c]const u8, @ptrCast(compData)), @as(c_int, @intCast(compData.len)), @as([*c]c_int, @ptrCast(&dataSize)));
-    res.len = @as(usize, @intCast(dataSize));
-    return res;
-}
-
-/// Encode data to Base64 string, memory must be MemFree()
-pub fn encodeDataBase64(data: []const u8) []u8 {
-    var outputSize: i32 = 0;
-    var res: []u8 = undefined;
-    res.ptr = cdef.EncodeDataBase64(@as([*c]const u8, @ptrCast(data)), @as(c_int, @intCast(data.len)), @as([*c]c_int, @ptrCast(&outputSize)));
-    res.len = @as(usize, @intCast(outputSize));
-    return res;
-}
-
-/// Decode Base64 string data, memory must be MemFree()
-pub fn decodeDataBase64(data: []const u8) []u8 {
-    var outputSize: i32 = 0;
-    var res: []u8 = undefined;
-    res.ptr = cdef.DecodeDataBase64(@as([*c]const u8, @ptrCast(data)), @as([*c]c_int, @ptrCast(&outputSize)));
-    res.len = @as(usize, @intCast(outputSize));
-    return res;
 }
 
 pub fn computeCRC32(data: []u8) u32 {
@@ -2141,19 +2108,6 @@ pub fn loadImageColors(image: Image) RaylibError![]Color {
 
     res.ptr = @as([*]Color, @ptrCast(ptr));
     res.len = @as(usize, @intCast(image.width * image.height));
-    return res;
-}
-
-/// Load colors palette from image as a Color array (RGBA - 32bit)
-pub fn loadImagePalette(image: Image, maxPaletteSize: i32) RaylibError![]Color {
-    var colorCount: i32 = 0;
-    var res: []Color = undefined;
-
-    const ptr = cdef.LoadImagePalette(image, @as(c_int, maxPaletteSize), @as([*c]c_int, @ptrCast(&colorCount)));
-    if (ptr == 0) return RaylibError.LoadImagePalette;
-
-    res.ptr = @as([*]Color, @ptrCast(ptr));
-    res.len = @as(usize, @intCast(colorCount));
     return res;
 }
 
@@ -2253,22 +2207,6 @@ pub fn loadFontData(fileData: []const u8, fontSize: i32, fontChars: []i32, ty: F
     return res;
 }
 
-/// Load all codepoints from a UTF-8 text string, codepoints count returned by parameter
-pub fn loadCodepoints(text: [:0]const u8) RaylibError![]i32 {
-    if (@sizeOf(c_int) != @sizeOf(i32)) {
-        @compileError("Can't cast pointer to c_int array to i32 because they don't have the same size");
-    }
-    var count: i32 = 0;
-    var res: []i32 = undefined;
-
-    const ptr = cdef.LoadCodepoints(@as([*c]const u8, @ptrCast(text)), @as([*c]c_int, @ptrCast(&count)));
-    if (ptr == 0) return RaylibError.LoadCodepoints;
-
-    res.ptr = @as([*]i32, @ptrCast(ptr));
-    res.len = @as(usize, @intCast(count));
-    return res;
-}
-
 /// Text formatting with variables (sprintf() style)
 pub fn textFormat(text: [:0]const u8, args: anytype) [:0]const u8 {
     comptime {
@@ -2303,15 +2241,6 @@ pub fn traceLog(logLevel: TraceLogLevel, text: [:0]const u8, args: anytype) void
     }
 
     @call(.auto, cdef.TraceLog, .{ logLevel, @as([*c]const u8, @ptrCast(text)) } ++ args);
-}
-
-/// Split text into multiple strings
-pub fn textSplit(text: [:0]const u8, delimiter: u8) [][:0]const u8 {
-    var count: i32 = 0;
-    var res: [][:0]const u8 = undefined;
-    res.ptr = @as([*][:0]const u8, @ptrCast(cdef.TextSplit(@as([*c]const u8, @ptrCast(text)), delimiter, @as([*c]c_int, @ptrCast(&count)))));
-    res.len = @as(usize, @intCast(count));
-    return res;
 }
 
 /// Draw multiple mesh instances with material and different transforms
@@ -2357,19 +2286,6 @@ pub fn loadModelFromMesh(mesh: Mesh) RaylibError!Model {
     const model = cdef.LoadModelFromMesh(mesh);
     const isValid = cdef.IsModelValid(model);
     return if (isValid) model else RaylibError.LoadModel;
-}
-
-/// Load model animations from file
-pub fn loadModelAnimations(fileName: [:0]const u8) RaylibError![]ModelAnimation {
-    var animCount: i32 = 0;
-    var res: []ModelAnimation = undefined;
-
-    const ptr = cdef.LoadModelAnimations(@as([*c]const u8, @ptrCast(fileName)), @as([*c]c_int, @ptrCast(&animCount)));
-    if (ptr == 0) return RaylibError.LoadModelAnimations;
-
-    res.ptr = @as([*]ModelAnimation, @ptrCast(ptr));
-    res.len = @as(usize, @intCast(animCount));
-    return res;
 }
 
 /// Unload animation data
@@ -2628,7 +2544,7 @@ pub fn minimizeWindow() void {
     cdef.MinimizeWindow();
 }
 
-/// Set window state: not minimized/maximized
+/// Restore window from being minimized/maximized
 pub fn restoreWindow() void {
     cdef.RestoreWindow();
 }
@@ -3093,6 +3009,14 @@ pub fn setSaveFileTextCallback(callback: SaveFileTextCallback) void {
     cdef.SetSaveFileTextCallback(callback);
 }
 
+/// Load file data as byte array (read)
+pub fn loadFileData(fileName: []const u8) RaylibError![]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.LoadFileData(@as([*c]const u8, @ptrCast(fileName)), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.LoadFileData;
+    return _ptr[0..@as(usize, @intCast(_len))];
+}
+
 /// Unload file data allocated by LoadFileData()
 pub fn unloadFileData(data: []u8) void {
     cdef.UnloadFileData(@as([*c]u8, @ptrCast(data)));
@@ -3109,8 +3033,8 @@ pub fn unloadFileText(text: [:0]u8) void {
 }
 
 /// Save text data to file (write), string must be '\0' terminated, returns true on success
-pub fn saveFileText(fileName: [:0]const u8, text: [:0]u8) bool {
-    return cdef.SaveFileText(@as([*c]const u8, @ptrCast(fileName)), @as([*c]u8, @ptrCast(text)));
+pub fn saveFileText(fileName: [:0]const u8, text: [:0]const u8) bool {
+    return cdef.SaveFileText(@as([*c]const u8, @ptrCast(fileName)), @as([*c]const u8, @ptrCast(text)));
 }
 
 /// Check if file exists
@@ -3221,6 +3145,38 @@ pub fn unloadDroppedFiles(files: FilePathList) void {
 /// Get file modification time (last write time)
 pub fn getFileModTime(fileName: [:0]const u8) i64 {
     return @as(i64, cdef.GetFileModTime(@as([*c]const u8, @ptrCast(fileName))));
+}
+
+/// Compress data (DEFLATE algorithm), memory must be MemFree()
+pub fn compressData(data: []const u8, dataSize: i32) RaylibError![]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.CompressData(@as([*c]const u8, @ptrCast(data)), @as(c_int, dataSize), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.CompressData;
+    return _ptr[0..@as(usize, @intCast(_len))];
+}
+
+/// Decompress data (DEFLATE algorithm), memory must be MemFree()
+pub fn decompressData(compData: []const u8, compDataSize: i32) RaylibError![]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.DecompressData(@as([*c]const u8, @ptrCast(compData)), @as(c_int, compDataSize), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.DecompressData;
+    return _ptr[0..@as(usize, @intCast(_len))];
+}
+
+/// Encode data to Base64 string (includes NULL terminator), memory must be MemFree()
+pub fn encodeDataBase64(data: []const u8, dataSize: i32) RaylibError![]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.EncodeDataBase64(@as([*c]const u8, @ptrCast(data)), @as(c_int, dataSize), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.EncodeDataBase64;
+    return _ptr[0..@as(usize, @intCast(_len))];
+}
+
+/// Decode Base64 string (expected NULL terminated), memory must be MemFree()
+pub fn decodeDataBase64(text: []const u8) RaylibError![]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.DecodeDataBase64(@as([*c]const u8, @ptrCast(text)), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.DecodeDataBase64;
+    return _ptr[0..@as(usize, @intCast(_len))];
 }
 
 /// Load automation events list from file, NULL for empty list, capacity = MAX_AUTOMATION_EVENTS
@@ -3343,12 +3299,12 @@ pub fn getGamepadButtonPressed() GamepadButton {
     return cdef.GetGamepadButtonPressed();
 }
 
-/// Get gamepad axis count for a gamepad
+/// Get axis count for a gamepad
 pub fn getGamepadAxisCount(gamepad: i32) i32 {
     return @as(i32, cdef.GetGamepadAxisCount(@as(c_int, gamepad)));
 }
 
-/// Get axis movement value for a gamepad axis
+/// Get movement value for a gamepad axis
 pub fn getGamepadAxisMovement(gamepad: i32, axis: GamepadAxis) f32 {
     return cdef.GetGamepadAxisMovement(@as(c_int, gamepad), axis);
 }
@@ -3593,9 +3549,19 @@ pub fn drawEllipse(centerX: i32, centerY: i32, radiusH: f32, radiusV: f32, color
     cdef.DrawEllipse(@as(c_int, centerX), @as(c_int, centerY), radiusH, radiusV, color);
 }
 
+/// Draw ellipse (Vector version)
+pub fn drawEllipseV(center: Vector2, radiusH: f32, radiusV: f32, color: Color) void {
+    cdef.DrawEllipseV(center, radiusH, radiusV, color);
+}
+
 /// Draw ellipse outline
 pub fn drawEllipseLines(centerX: i32, centerY: i32, radiusH: f32, radiusV: f32, color: Color) void {
     cdef.DrawEllipseLines(@as(c_int, centerX), @as(c_int, centerY), radiusH, radiusV, color);
+}
+
+/// Draw ellipse outline (Vector version)
+pub fn drawEllipseLinesV(center: Vector2, radiusH: f32, radiusV: f32, color: Color) void {
+    cdef.DrawEllipseLinesV(center, radiusH, radiusV, color);
 }
 
 /// Draw ring
@@ -3639,8 +3605,8 @@ pub fn drawRectangleGradientH(posX: i32, posY: i32, width: i32, height: i32, lef
 }
 
 /// Draw a gradient-filled rectangle with custom vertex colors
-pub fn drawRectangleGradientEx(rec: Rectangle, topLeft: Color, bottomLeft: Color, topRight: Color, bottomRight: Color) void {
-    cdef.DrawRectangleGradientEx(rec, topLeft, bottomLeft, topRight, bottomRight);
+pub fn drawRectangleGradientEx(rec: Rectangle, topLeft: Color, bottomLeft: Color, bottomRight: Color, topRight: Color) void {
+    cdef.DrawRectangleGradientEx(rec, topLeft, bottomLeft, bottomRight, topRight);
 }
 
 /// Draw rectangle outline
@@ -3809,8 +3775,11 @@ pub fn exportImage(image: Image, fileName: [:0]const u8) bool {
 }
 
 /// Export image to memory buffer
-pub fn exportImageToMemory(image: Image, fileType: [:0]const u8, fileSize: *i32) [:0]u8 {
-    return std.mem.span(cdef.ExportImageToMemory(image, @as([*c]const u8, @ptrCast(fileType)), @as([*c]c_int, @ptrCast(fileSize))));
+pub fn exportImageToMemory(image: Image, fileType: []const u8) RaylibError![]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.ExportImageToMemory(image, @as([*c]const u8, @ptrCast(fileType)), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.ExportImageToMemory;
+    return _ptr[0..@as(usize, @intCast(_len))];
 }
 
 /// Export image as code file defining an array of bytes, returns true on success
@@ -3998,6 +3967,14 @@ pub fn imageColorReplace(image: *Image, color: Color, replace: Color) void {
     cdef.ImageColorReplace(@as([*c]Image, @ptrCast(image)), color, replace);
 }
 
+/// Load colors palette from image as a Color array (RGBA - 32bit)
+pub fn loadImagePalette(image: Image, maxPaletteSize: i32) RaylibError![]Color {
+    var _len: i32 = 0;
+    const _ptr = cdef.LoadImagePalette(image, @as(c_int, maxPaletteSize), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.LoadImagePalette;
+    return _ptr[0..@as(usize, @intCast(_len))];
+}
+
 /// Unload color data loaded with LoadImageColors()
 pub fn unloadImageColors(colors: []Color) void {
     cdef.UnloadImageColors(@as([*c]Color, @ptrCast(colors)));
@@ -4104,13 +4081,13 @@ pub fn imageDrawTriangleLines(dst: *Image, v1: Vector2, v2: Vector2, v3: Vector2
 }
 
 /// Draw a triangle fan defined by points within an image (first vertex is the center)
-pub fn imageDrawTriangleFan(dst: *Image, points: []Vector2, pointCount: i32, color: Color) void {
-    cdef.ImageDrawTriangleFan(@as([*c]Image, @ptrCast(dst)), @as([*c]Vector2, @ptrCast(points)), @as(c_int, pointCount), color);
+pub fn imageDrawTriangleFan(dst: *Image, points: []const Vector2, pointCount: i32, color: Color) void {
+    cdef.ImageDrawTriangleFan(@as([*c]Image, @ptrCast(dst)), @as([*c]const Vector2, @ptrCast(points)), @as(c_int, pointCount), color);
 }
 
 /// Draw a triangle strip defined by points within an image
-pub fn imageDrawTriangleStrip(dst: *Image, points: []Vector2, pointCount: i32, color: Color) void {
-    cdef.ImageDrawTriangleStrip(@as([*c]Image, @ptrCast(dst)), @as([*c]Vector2, @ptrCast(points)), @as(c_int, pointCount), color);
+pub fn imageDrawTriangleStrip(dst: *Image, points: []const Vector2, pointCount: i32, color: Color) void {
+    cdef.ImageDrawTriangleStrip(@as([*c]Image, @ptrCast(dst)), @as([*c]const Vector2, @ptrCast(points)), @as(c_int, pointCount), color);
 }
 
 /// Draw a source image within a destination image (tint applied to source)
@@ -4358,6 +4335,14 @@ pub fn unloadUTF8(text: [:0]u8) void {
     cdef.UnloadUTF8(@as([*c]u8, @ptrCast(text)));
 }
 
+/// Load all codepoints from a UTF-8 text string, codepoints count returned by parameter
+pub fn loadCodepoints(text: []const u8) RaylibError![]i32 {
+    var _len: i32 = 0;
+    const _ptr = cdef.LoadCodepoints(@as([*c]const u8, @ptrCast(text)), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.LoadCodepoints;
+    return _ptr[0..@as(usize, @intCast(_len))];
+}
+
 /// Unload codepoints data from memory
 pub fn unloadCodepoints(codepoints: []i32) void {
     cdef.UnloadCodepoints(@as([*c]c_int, @ptrCast(codepoints)));
@@ -4416,6 +4401,14 @@ pub fn textReplace(text: [:0]const u8, replace: [:0]const u8, by: [:0]const u8) 
 /// Insert text in a position (WARNING: memory must be freed!)
 pub fn textInsert(text: [:0]const u8, insert: [:0]const u8, position: i32) [:0]u8 {
     return std.mem.span(cdef.TextInsert(@as([*c]const u8, @ptrCast(text)), @as([*c]const u8, @ptrCast(insert)), @as(c_int, position)));
+}
+
+/// Split text into multiple strings
+pub fn textSplit(text: []const u8, delimiter: u8) RaylibError![][:0]u8 {
+    var _len: i32 = 0;
+    const _ptr = cdef.TextSplit(@as([*c]const u8, @ptrCast(text)), delimiter, @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.TextSplit;
+    return @as([*][:0]u8, @ptrCast(_ptr))[0..@as(usize, @intCast(_len))];
 }
 
 /// Append text at specific position and move cursor!
@@ -4741,6 +4734,14 @@ pub fn setMaterialTexture(material: *Material, mapType: MaterialMapIndex, textur
 /// Set material for a mesh
 pub fn setModelMeshMaterial(model: *Model, meshId: i32, materialId: i32) void {
     cdef.SetModelMeshMaterial(@as([*c]Model, @ptrCast(model)), @as(c_int, meshId), @as(c_int, materialId));
+}
+
+/// Load model animations from file
+pub fn loadModelAnimations(fileName: []const u8) RaylibError![]ModelAnimation {
+    var _len: i32 = 0;
+    const _ptr = cdef.LoadModelAnimations(@as([*c]const u8, @ptrCast(fileName)), @as([*c]c_int, @ptrCast(&_len)));
+    if (_ptr == 0) return RaylibError.LoadModelAnimations;
+    return _ptr[0..@as(usize, @intCast(_len))];
 }
 
 /// Update model animation pose (CPU)
